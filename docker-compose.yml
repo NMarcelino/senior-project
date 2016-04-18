@@ -1,0 +1,37 @@
+# all containers are placed in the same network
+# so hosts like 'api' or 'db' will resolve to the correct ip
+
+# version 2 automatically creates a network to resolve hostnames
+version: '2'
+
+#container
+services:
+    # expose port 3000 (express) to the public 80
+    # if we run a nginx load balancer we'll change this up
+    app:
+        build: ./app/
+        ports:
+            - "80:3000"
+
+    # rethinkdb master container; we'll point any slaves to this instance
+    # expose the ports, only to the host machine so it can be accessed
+    # if we start adding to the cluster outside of this instance we'll have to
+    # bind ports to the public hosts
+    rethinkdb-master:
+        image: rethinkdb:latest
+        volumes_from:
+            - rethinkdb-data
+        expose:
+            - "28015" # driver port
+            - "29015" # intracluster port
+        ports:
+            - "3000:8080" #expose the admin panel to the public
+
+    # create a data-specific container to house rethinkdb
+    # persists data if we CRUD rethinkdb containers; allows us to backup data too
+    # the tianon/true image is used bc its only 125 bytes, perfect for data containers
+    # tianon is killed after it's is created so not to take up resources
+    rethinkdb-data:
+        image: tianon/true
+        volumes:
+            - /rethinkdb/data
